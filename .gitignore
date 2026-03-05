@@ -1,0 +1,15 @@
+# mysql data
+mysql/mysql-data/
+
+# build
+target/
+
+# logs
+*.log
+
+# IDE
+.idea
+.vscode
+
+# OS
+.DS_Store
