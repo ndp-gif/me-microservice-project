@@ -1,56 +1,85 @@
+version: '3.8'
+
 services:
   mysql:
+    image: mysql:8.0.40
     container_name: mysql
-    build:
-      context: ./mysql
-      args:
-        - MYSQL_DATABASE=${MYSQL_DATABASE}
-        - MYSQL_USER=${MYSQL_USER}
-        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-        - MYSQL_PORT=${MYSQL_PORT}
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-microservice}
+      MYSQL_USER: ${MYSQL_USER:-mysql}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-1234}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-1234}
     ports:
-      - "${MYSQL_PORT}:3306"
+      - "${MYSQL_PORT:-3306}:3306"   # map port host:container, mặc định 3307 để tránh conflict 3306 local
     volumes:
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./mysql/mysql-data:/var/lib/mysql
+      - mysql-data:/var/lib/mysql
     networks:
-      - spring-microservice
-
-  department-service:
-    container_name: department-service
-    build:
-      context: ./department-service
-      dockerfile: Dockerfile
-    ports:
-      - "8081:8081"
-    depends_on:
-      - mysql
-    networks:
-      - spring-microservice
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/microservice?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: mysql
-      SPRING_DATASOURCE_PASSWORD: 1234
-      SPRING_APPLICATION_NAME: department-service
+      - spring-ms-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   account-service:
-    container_name: account-service
     build:
       context: ./account-service
       dockerfile: Dockerfile
+    container_name: account-service
     ports:
       - "8080:8080"
     depends_on:
-      - mysql
-    networks:
-      - spring-microservice
+      mysql:
+        condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/microservice?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: mysql
-      SPRING_DATASOURCE_PASSWORD: 1234
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-microservice}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-mysql}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-1234}
       SPRING_APPLICATION_NAME: account-service
+    networks:
+      - spring-ms-net
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-microservice}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-mysql}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-1234}
+      SPRING_APPLICATION_NAME: auth-service
+    networks:
+      - spring-ms-net
+
+  department-service:
+    build:
+      context: ./department-service
+      dockerfile: Dockerfile
+    container_name: department-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-microservice}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-mysql}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-1234}
+      SPRING_APPLICATION_NAME: department-service
+    networks:
+      - spring-ms-net
 
 networks:
-  spring-microservice:
+  spring-ms-net:
     driver: bridge
+
+volumes:
+  mysql-data:

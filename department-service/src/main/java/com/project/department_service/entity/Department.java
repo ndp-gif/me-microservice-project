@@ -12,7 +12,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "tbl_department")
+@Table(name = "department")
 @Getter
 public class Department extends Abstract<Integer> implements Serializable {
 

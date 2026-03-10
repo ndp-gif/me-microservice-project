@@ -13,7 +13,7 @@ import java.io.Serializable;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "tbl_account")
+@Table(name = "account")
 @Getter
 public class Account extends Abstract<Long> implements Serializable {
 
